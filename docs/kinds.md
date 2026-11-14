@@ -81,6 +81,7 @@ Member formats: *json* is a JSON member checked against its payload definition, 
 - [`spectra.xas`](#kind-spectra-xas)
 - [`spectra.xes`](#kind-spectra-xes)
 - [`spectra.mossbauer`](#kind-spectra-mossbauer)
+- [`energy_decomposition`](#kind-energy-decomposition)
 
 <a id="kind-structure"></a>
 
@@ -496,6 +497,10 @@ Difference density (or any difference scalar field). Structurally identical to v
 | `operand_a` |  | string | Section id of the minuend (the 'a' in a - b). Must reference a section that exists in this archive. |
 | `operand_b` |  | string | Section id of the subtrahend (the 'b' in a - b). Must reference a section that exists in this archive. |
 | `description` |  | string | Optional human-readable description, e.g. 'ρ(product) - ρ(reactant)'. |
+| `decomposition_ref` |  | string | Id of the `energy_decomposition` section whose decomposition this difference density belongs to. It must name a section of kind `energy_decomposition` in this archive; see QVF spec § 5.16 (energy_decomposition — energy decomposition analysis). |
+| `decomposition_role` |  | one of `"orbital_pair"` \| `"orbital_relaxation"` \| `"interaction"` \| `"polarization"` \| `"charge_transfer"` or string | What the density is within that decomposition: `orbital_pair` (the deformation density of one NOCV or COVP pair, named by `pair_index` and `pair_spin`), `orbital_relaxation` (relaxed minus frozen state), `interaction` (complete system minus the sum of the fragments), `polarization`, `charge_transfer`, or an `x_` name. Requires `decomposition_ref`. |
+| `pair_index` |  | integer | The `index` of the orbital pair in the `energy_decomposition` section's `orbital_pairs`. Required when `decomposition_role` is `orbital_pair` (checked by validators); requires `decomposition_ref`. |
+| `pair_spin` |  | one of `"restricted"` \| `"alpha"` \| `"beta"` | The `spin` of that orbital pair; absent means `restricted`. Requires `pair_index`. |
 
 **Example** (from `conformance/corpus/volume_difference.qvf`, long arrays shortened)
 
@@ -3713,6 +3718,111 @@ Manifest section:
 }
 ```
 
+<a id="kind-energy-decomposition"></a>
+
+## `energy_decomposition`
+
+Schema definition: `$defs/SectionEnergyDecomposition`.
+
+An energy decomposition analysis (EDA): the partition of the interaction energy of two or more fragments into named terms, by any scheme (Ziegler-Rauk / ETS, periodic EDA, LMO-EDA, Kitaura-Morokuma, ALMO-EDA, SAPT, local energy decomposition, many-body expansions), with its fragments, optional sum rules and an optional table of NOCV or COVP orbital pairs, in the JSON member `decomposition`, whose payload is `#/$defs/EnergyDecompositionPayload`. See QVF spec § 5.16 (energy_decomposition — energy decomposition analysis).
+
+**Members**
+
+| Role | Required | Format | dtypes | Rank | Payload |
+|---|---|---|---|---|---|
+| `decomposition` | yes | json |  |  | [`EnergyDecompositionPayload`](#def-energydecompositionpayload) |
+
+**Section fields**
+
+| Field | Required | Type | Description |
+|---|---|---|---|
+| `wavefunction_ref` |  | string | Id of the `wavefunction.gto` or `wavefunction.bloch` section of the complete system, the relaxed state the decomposition ends in. It must name a section of one of these kinds in this archive. See QVF spec § 5.16 (energy_decomposition — energy decomposition analysis). |
+
+**Example** (from `conformance/corpus/energy_decomposition_periodic_peda.qvf`, long arrays shortened)
+
+Manifest section:
+
+```json
+{
+  "id": "energy_decomposition",
+  "kind": "energy_decomposition",
+  "members": {
+    "decomposition": {
+      "path": "energy_decomposition/decomposition.json",
+      "format": "json",
+      "sha256": "7038c451f18f8d6fdda1cb8c4c4a5dbaee35db1e6cedfb5238bf3f1c6ea9841b",
+      "size": 2209
+    }
+  }
+}
+```
+
+`decomposition` payload (`energy_decomposition/decomposition.json`):
+
+```json
+{
+  "scheme": "ziegler-rauk",
+  "variant": "peda",
+  "method": {"method": "rks", "functional": "pbe", "basis": "def2-svp", "dispersion": "d3bj"},
+  "fragments": [
+    {
+      "label": "h-BN",
+      "atoms": [0, 1, 2, 3, 4, 5, 6, 7],
+      "basis": "own"
+    },
+    {
+      "label": "H2O",
+      "atoms": [8, 9, 10],
+      "basis": "own"
+    }
+  ],
+  "terms": [
+    {
+      "name": "interaction",
+      "energy": {"value": -0.0073305666, "units": "hartree"}
+    },
+    {
+      "name": "electrostatic",
+      "energy": {"value": -0.0062150456, "units": "hartree"}
+    },
+    {
+      "name": "pauli",
+      "energy": {"value": 0.0089241681, "units": "hartree"}
+    },
+    "… 2 more"
+  ],
+  "sum_rules": [
+    {
+      "total": 0,
+      "parts": [1, 2, 3, 4]
+    }
+  ],
+  "orbital_pairs": {
+    "type": "nocv",
+    "eigenvalue_convention": "per_spin",
+    "pairs": [
+      {
+        "index": 1,
+        "eigenvalue": 0.031,
+        "energy": {"…": "2 keys"},
+        "kpoint_eigenvalues": ["… 4 items"],
+        "kpoint_energies": ["… 4 items"]
+      }
+    ]
+  },
+  "periodic": {
+    "kpoints": {
+      "kpoints": [
+        ["… 3 items"],
+        ["… 3 items"],
+        ["… 3 items"],
+        "… 1 more"
+      ],
+      "weights": [0.25, 0.25, 0.25, 0.25]
+    },
+… 3 more lines
+```
+
 ## Payload definitions
 
 The JSON payload definitions named in the member tables, in alphabetical order.
@@ -3891,6 +4001,27 @@ The JSON payload named by a `properties.electric` section's `properties` member:
 | `units` |  | object | Declared units, field name to unit name (QVF spec § 4.3 (Units and numeric conventions)): `dipole` is debye, `origin`, when it is a vector, bohr, `quadrupole` debye_angstrom, `octupole` debye_angstrom2, `polarizability` e2_bohr2_per_hartree and `hyperpolarizability` e3_bohr3_per_hartree2. v1 fixes them all, so a declaration only restates them; see QVF spec § 5.13 (Property kinds). |
 
 Fixed units: `dipole` = `debye`, `origin` = `bohr`, `quadrupole` = `debye_angstrom`, `octupole` = `debye_angstrom2`, `polarizability` = `e2_bohr2_per_hartree`, `hyperpolarizability` = `e3_bohr3_per_hartree2`.
+
+<a id="def-energydecompositionpayload"></a>
+
+### `EnergyDecompositionPayload`
+
+Used by: [`energy_decomposition`](#kind-energy-decomposition).
+
+The JSON payload named by an `energy_decomposition` section's `decomposition` member. It is an archive member, not part of manifest.json; a validator loads the member's bytes and checks them against this definition. Strict: only the fields below and keys beginning with x_ are allowed. Index ranges, disjoint fragments, unique terms, the sum rules and the references to `volume.difference` sections are checked by validators, not by this schema. See QVF spec § 5.16 (energy_decomposition — energy decomposition analysis).
+
+| Field | Required | Type | Description |
+|---|---|---|---|
+| `scheme` | yes | one of `"ziegler-rauk"` \| `"lmo-eda"` \| `"gks-eda"` \| `"kitaura-morokuma"` \| `"almo-eda"` \| `"sapt"` \| `"led"` \| `"many-body"` or string | Partition family: `ziegler-rauk` (EDA / ETS, including periodic EDA), `lmo-eda`, `gks-eda`, `kitaura-morokuma`, `almo-eda`, `sapt`, `led` (local energy decomposition), `many-body`, or an `x_` name. |
+| `variant` |  | string | The producer's name of the flavour, e.g. 'eda-nocv', 'peda', 'sapt0', 'fisapt0', 'almo-eda2'. |
+| `method` |  | [`DecompositionMethod`](#def-decompositionmethod) | The method of an `EnergyDecompositionPayload`. Strict: any other key is an error unless it begins with `x_`. See QVF spec § 5.16 (energy_decomposition — energy decomposition analysis). |
+| `fragments` | yes | array[2..] of [`DecompositionFragment`](#def-decompositionfragment) | The fragments: at least two interacting fragments (no `parent`), then any sub-fragments. |
+| `energies` |  | object | Reference energies; those of the fragments are on the fragments. Strict: any other key is an error unless it begins with `x_`. |
+| `terms` | yes | array[1..] of [`DecompositionTerm`](#def-decompositionterm) | The energy terms. Exactly one has the name `interaction` and no `fragments`, `spin` or `parent`: the interaction energy being decomposed. |
+| `sum_rules` |  | array of [`DecompositionSumRule`](#def-decompositionsumrule) | The additivities that hold between the terms, checked by validators. |
+| `orbital_pairs` |  | [`DecompositionOrbitalPairs`](#def-decompositionorbitalpairs) | The orbital-pair table of an `EnergyDecompositionPayload` (ETS-NOCV, ALMO COVP). The orbitals themselves are not part of this payload. Strict: any other key is an error unless it begins with `x_`. See QVF spec § 5.16 (energy_decomposition — energy decomposition analysis). |
+| `periodic` |  | [`DecompositionPeriodic`](#def-decompositionperiodic) | k-point sampling of a periodic decomposition. Strict: any other key is an error unless it begins with `x_`. See QVF spec § 5.16 (energy_decomposition — energy decomposition analysis). |
+| `notes` |  | string | Free text for people. |
 
 <a id="def-eosfitpayload"></a>
 
@@ -4522,6 +4653,111 @@ BibTeX bytes are carried as a binary member; consumers decode as UTF-8.
 | `sha256` | yes | string |  |
 | `size` |  | integer | Uncompressed byte count of the stored member: it must equal the uncompressed size the ZIP central directory records for the member's entry, which a validator checks before reading the member. Optional on every member spec. See QVF spec § 4.2 (Member specs). |
 | `media_type` |  | string | IANA media type of the member's bytes, a type and a subtype without parameters (RFC 6838), e.g. 'image/png' or 'text/plain'. Optional on every member spec; it describes the bytes and changes nothing in how they are read. A kind may require it, as `preview` does. See QVF spec § 4.2 (Member specs). |
+
+<a id="def-decompositionfragment"></a>
+
+### `DecompositionFragment`
+
+One fragment of an `EnergyDecompositionPayload`, named elsewhere by its 0-based index in `fragments`. Strict: any other key is an error unless it begins with `x_`. See QVF spec § 5.16 (energy_decomposition — energy decomposition analysis).
+
+| Field | Required | Type | Description |
+|---|---|---|---|
+| `label` | yes | string | Display name of the fragment, e.g. 'H2O' or 'CH3 (spin flipped)'. |
+| `atoms` | yes | array[1..] of integer | 0-based indices into the `atoms` of the section's structure (the one its `structure_ref` names, else the first structure). Top-level fragments (no `parent`) are disjoint; they need not cover every atom. |
+| `parent` |  | integer | Index in `fragments` of the fragment this one subdivides, for a partition finer than the interacting fragments, e.g. the functional groups of F-SAPT. Its atoms are a subset of the parent's. Absent for an interacting fragment. |
+| `charge` |  | integer | Net charge of the fragment, in units of e. |
+| `multiplicity` |  | integer | Spin multiplicity 2S + 1 of the fragment. |
+| `spin_flip` |  | boolean | True when the fragment enters the decomposition with the spins of its unpaired electrons reversed (alpha and beta exchanged), as for the second radical of an electron-sharing bond. Absent means false. |
+| `basis` |  | one of `"own"` \| `"supersystem"` or string | Basis of the fragment calculation: `own` for the fragment's own functions, `supersystem` for the functions of the complete system on ghost atoms (counterpoise), or an `x_` name. |
+| `state` |  | string | Free-text description of the fragment state used, e.g. 'prepared: alpha SOMO occupied' or 'relaxed'. |
+| `energy` |  | [`ValueWithUnits`](#def-valuewithunits) | Energy of the fragment in the state the decomposition starts from. Producers SHOULD write it in `hartree`. |
+
+<a id="def-decompositionmethod"></a>
+
+### `DecompositionMethod`
+
+The method of an `EnergyDecompositionPayload`. Strict: any other key is an error unless it begins with `x_`. See QVF spec § 5.16 (energy_decomposition — energy decomposition analysis).
+
+| Field | Required | Type | Description |
+|---|---|---|---|
+| `method` |  | string | Electronic-structure method, lowercase as in `provenance.method`, e.g. 'rks', 'rhf', 'dlpno-ccsd(t)', 'sapt0'. |
+| `functional` |  | string | Exchange-correlation functional, e.g. 'pbe'. |
+| `basis` |  | string | Basis set name, e.g. 'tz2p' or 'def2-tzvp'. |
+| `dispersion` |  | string | Dispersion correction, e.g. 'd3bj'. |
+
+<a id="def-decompositionorbitalpair"></a>
+
+### `DecompositionOrbitalPair`
+
+One orbital pair of `DecompositionOrbitalPairs`. Strict: any other key is an error unless it begins with `x_`. See QVF spec § 5.16 (energy_decomposition — energy decomposition analysis).
+
+| Field | Required | Type | Description |
+|---|---|---|---|
+| `index` | yes | integer | Number of the pair, counted from 1 within its spin channel, in the producer's order (usually descending eigenvalue). `volume.difference` sections name a pair by this number and `spin`. |
+| `spin` |  | one of `"restricted"` \| `"alpha"` \| `"beta"` | Spin channel of the pair: `restricted` (absent means this) for a pair of a spin-restricted decomposition, whose energy covers both spins, `alpha` or `beta` otherwise. |
+| `eigenvalue` | yes | number | The magnitude \|nu\| of the +nu / -nu eigenvalue pair, in electrons, by the payload's `eigenvalue_convention`. |
+| `energy` | yes | [`ValueWithUnits`](#def-valuewithunits) | Orbital-interaction energy of the pair (ETS), negative when the pair stabilises. Producers SHOULD write it in `hartree`. |
+| `donor` |  | integer | Index in `fragments` of the fragment that donates, for pairs that have one (COVP). |
+| `acceptor` |  | integer | Index in `fragments` of the fragment that accepts, for pairs that have one (COVP). |
+| `kpoint_eigenvalues` |  | array of number | For a periodic decomposition on a k-mesh: the eigenvalue of the pair at each k-point of `periodic.kpoints`, in that order. |
+| `kpoint_energies` |  | array of number | For a periodic decomposition on a k-mesh: the weighted energy contribution of the pair at each k-point of `periodic.kpoints`, in the units of `energy`, summing to `energy`. |
+| `density_ref` |  | string | Id of the `volume.difference` section holding the deformation density of the pair, which names this payload's section in its `decomposition_ref` and this pair in `pair_index` and `pair_spin`. |
+| `label` |  | string | Display label, e.g. 'sigma donation'. |
+
+<a id="def-decompositionorbitalpairs"></a>
+
+### `DecompositionOrbitalPairs`
+
+The orbital-pair table of an `EnergyDecompositionPayload` (ETS-NOCV, ALMO COVP). The orbitals themselves are not part of this payload. Strict: any other key is an error unless it begins with `x_`. See QVF spec § 5.16 (energy_decomposition — energy decomposition analysis).
+
+| Field | Required | Type | Description |
+|---|---|---|---|
+| `type` | yes | one of `"nocv"` \| `"covp"` or string | What the pairs are: `nocv` for natural orbitals for chemical valence (eigenvectors of the deformation density), `covp` for complementary occupied-virtual pairs of an ALMO charge-transfer analysis, or an `x_` name. |
+| `eigenvalue_convention` |  | one of `"per_spin"` \| `"spin_summed"` | How `eigenvalue` counts electrons: `per_spin`, the eigenvalue of one spin channel's deformation density (ADF, BAND; a restricted pair moves 2 nu electrons), or `spin_summed`, the eigenvalue of the total deformation density. Required for `nocv` pairs (checked by validators). |
+| `threshold` |  | number | Smallest eigenvalue the producer listed. |
+| `total` |  | [`ValueWithUnits`](#def-valuewithunits) | Sum of the energies of all pairs, the listed ones and those below `threshold`; for NOCVs the ETS estimate of the orbital term. |
+| `pairs` | yes | array of [`DecompositionOrbitalPair`](#def-decompositionorbitalpair) | The listed pairs. |
+
+<a id="def-decompositionperiodic"></a>
+
+### `DecompositionPeriodic`
+
+k-point sampling of a periodic decomposition. Strict: any other key is an error unless it begins with `x_`. See QVF spec § 5.16 (energy_decomposition — energy decomposition analysis).
+
+| Field | Required | Type | Description |
+|---|---|---|---|
+| `kpoints` | yes | [`BlochKpointsPayload`](#def-blochkpointspayload) | The k-points and weights of the decomposition, in the representation of `wavefunction.bloch` (fractional reciprocal coordinates); the `kpoint_*` arrays of the orbital pairs follow their order. |
+| `mesh` |  | array[3] of integer | Monkhorst-Pack mesh dimensions, when the k-points are one. |
+| `orbital_pairs_gamma_only` |  | boolean | True when the orbital pairs were computed at the Gamma point only, while the energies use the full k-point set (as BAND's PEDA-NOCV does). |
+
+<a id="def-decompositionsumrule"></a>
+
+### `DecompositionSumRule`
+
+A declared additivity of an `EnergyDecompositionPayload`: the energies of `parts` add up to the energy of `total` within `tolerance`, which validators check. Strict: any other key is an error unless it begins with `x_`. See QVF spec § 5.16 (energy_decomposition — energy decomposition analysis).
+
+| Field | Required | Type | Description |
+|---|---|---|---|
+| `total` | yes | integer | Index in `terms` of the term that the parts add up to. |
+| `parts` | yes | array[1..] of integer | Indices in `terms` of the terms whose energies add up to the energy of `total`. |
+| `tolerance` |  | [`ValueWithUnits`](#def-valuewithunits) | Largest allowed \|total - sum of parts\|; absent means 1e-6 hartree, enough for energies as printed to six decimals. |
+
+<a id="def-decompositionterm"></a>
+
+### `DecompositionTerm`
+
+One energy term of an `EnergyDecompositionPayload`, named elsewhere by its 0-based index in `terms`. The combination of `name`, `fragments`, `spin` and `parent` is unique (checked by validators). Strict: any other key is an error unless it begins with `x_`. See QVF spec § 5.16 (energy_decomposition — energy decomposition analysis).
+
+| Field | Required | Type | Description |
+|---|---|---|---|
+| `name` | yes | one of 19 values or string | What the term is: `interaction`, `electrostatic`, `pauli`, `exchange`, `repulsion`, `orbital`, `polarization`, `charge_transfer`, `induction`, `dispersion`, `exchange_induction`, `exchange_dispersion`, `delta_hf`, `preparation`, `frozen`, `exchange_correlation`, `correlation`, `reference` or `coupling`, as QVF spec § 5.16 (energy_decomposition — energy decomposition analysis) defines them, or an `x_` name for a term of the producer's own. |
+| `energy` | yes | [`ValueWithUnits`](#def-valuewithunits) | The energy of the term. Producers SHOULD write it in `hartree`; validators accept the energy units `hartree`, `ev`, `kcal_per_mol` and `kj_per_mol` of QVF spec § 4.3 (Units and numeric conventions). |
+| `fragments` |  | array[1..] of integer | Indices in `fragments` the term belongs to: absent for a term of the whole interaction, one index for a term of one fragment (e.g. `preparation`), two for a pair term (e.g. the pair electrostatics of a local energy decomposition) and more for an n-body term. Without `directed` the order carries no meaning. |
+| `directed` |  | boolean | True when `fragments` is an ordered [donor, acceptor] pair, as for the charge transfer from one fragment to another. Absent means false. |
+| `spin` |  | one of `"alpha"` \| `"beta"` | Spin channel of a term that the producer resolves by spin; absent for a spin-summed term. |
+| `parent` |  | integer | Index in `terms` of the term this one is a part of, e.g. a SAPT order within `electrostatic` or the dispersion within the correlation of a local energy decomposition. Absent for a component of the interaction itself. |
+| `order` |  | string | Perturbation order or level label as the producer writes it, e.g. '(10)', '(20),r' or 'SAPT2+'. |
+| `label` |  | string | The producer's own name of the term, for display, e.g. 'Pauli Repulsion' or 'Elst10,r'. |
 
 <a id="def-derivativeunits"></a>
 

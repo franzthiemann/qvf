@@ -373,6 +373,9 @@ KINDS: Mapping[str, KindInfo] = MappingProxyType({
     "spectra.mossbauer": KindInfo("spectra.mossbauer", (
         RoleInfo("spectrum", True, "json", (), None, None, "MossbauerSpectrumPayload", False),
     ), False),
+    "energy_decomposition": KindInfo("energy_decomposition", (
+        RoleInfo("decomposition", True, "json", (), None, None, "EnergyDecompositionPayload", False),
+    ), False),
 })
 
 #: The canonical kind names (registry.json order); vendor kinds x_<...> are
@@ -447,6 +450,7 @@ PAYLOAD_DEFS: Mapping[Tuple[str, str], str] = MappingProxyType({
     ("properties.elastic", "properties"): "ElasticPropertiesPayload",
     ("properties.dielectric", "properties"): "DielectricPropertiesPayload",
     ("excited_states", "states"): "ExcitedStatesPayload",
+    ("energy_decomposition", "decomposition"): "EnergyDecompositionPayload",
     ("volume.transition_density", "grid"): "VolumeGridPayload",
 })
 
@@ -529,9 +533,13 @@ SCHEMA_DEFS: Tuple[str, ...] = (
     "Matrix3x6", "Matrix6x6", "Tensor3x3x3", "ElectricPropertiesPayload",
     "ElasticPropertiesPayload", "DielectricPropertiesPayload",
     "SectionVolumeTransitionDensity", "SectionPreview", "PreviewThumbnail",
-    "PreviewImage", "SectionVendor", "Metadata", "MetadataAuthor",
-    "ProvenanceSoftware", "Thermochemistry", "DipoleMoment", "Constraints",
-    "Energies", "EnergyComponents", "EnergyByMethod", "Extensions",
+    "PreviewImage", "SectionEnergyDecomposition", "EnergyDecompositionPayload",
+    "DecompositionMethod", "DecompositionFragment", "DecompositionTerm",
+    "DecompositionSumRule", "DecompositionOrbitalPairs",
+    "DecompositionOrbitalPair", "DecompositionPeriodic", "SectionVendor",
+    "Metadata", "MetadataAuthor", "ProvenanceSoftware", "Thermochemistry",
+    "DipoleMoment", "Constraints", "Energies", "EnergyComponents",
+    "EnergyByMethod", "Extensions",
 )
 #: The unit each key of a definition's ``units`` object is fixed to (the
 #: ``const`` entries of its ``units`` property, following ``allOf``
@@ -654,4 +662,5 @@ FINDING_CODES: Mapping[str, str] = MappingProxyType({
     "E_ROOT_INCONSISTENT": "error",
     "E_NORMALIZATION": "error",
     "E_UNIT_CONTRADICTED": "error",
+    "E_SUM_RULE": "error",
 })

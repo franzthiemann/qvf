@@ -94,7 +94,7 @@ open. Recording a mistake is part of the process working, not evidence against i
 
 ### 2026-11-14: Energy decomposition analysis (`energy_decomposition`)
 
-**Status.** Proposed for maintainer decision under "Change process" (a new
+**Status.** Accepted by the maintainer on 2026-11-14 (vibyverse/qvf#32) under "Change process" (a new
 canonical kind added directly when a clear ecosystem need exists and a
 reference consumer will render it), promoted provisionally from the
 first-party `x_vibeqc.peda` section (§ 7.5). Energy decomposition analyses
@@ -171,10 +171,13 @@ payload: their size is pairs × k-points numbers, small next to any volume.
 charge-transfer analysis, QM/MM regions and viewers could also name) was
 considered and deferred: the fragments stay inside the payload. If such a
 model is added later, each decomposition fragment can gain an optional
-reference to a shared group, which is an additive change. (d) For maintainer decision: an unknown `scheme` is
-currently a schema error (`E_PAYLOAD_SCHEMA`); the proposer would accept a
-warning instead, so that a producer with a new partition need not wait for a
-registry change.
+reference to a shared group, which is an additive change. (d) An unknown `scheme` stays a schema error
+(`E_PAYLOAD_SCHEMA`), by maintainer decision on 2026-11-14 (vibyverse/qvf#32): a
+producer with a new partition uses an `x_` name until the scheme is
+registered, as with extension kinds, which keeps the vocabulary checkable and
+avoids near-duplicate names. (e) A sum rule's `tolerance` is not negative
+(follow-up to #32): a negative tolerance made every rule fail with a
+misleading message, and is now `E_PAYLOAD_SCHEMA`.
 
 **Compatibility.** Additive: a new kind and four new optional section
 fields of an existing kind. No `qvf_version` change; consumers that do not

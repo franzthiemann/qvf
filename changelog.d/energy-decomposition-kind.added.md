@@ -1,4 +1,4 @@
-Proposed for maintainer decision (GOVERNANCE.md, 2026-11-14 record): the
+Accepted by the maintainer (GOVERNANCE.md, 2026-11-14 record, #32): the
 canonical kind `energy_decomposition` (provisional, promoted from `x_vibeqc.peda`) for energy
 decomposition analyses of any scheme — Ziegler–Rauk/ETS and periodic EDA,
 LMO-EDA, GKS-EDA, Kitaura–Morokuma, ALMO-EDA, SAPT, local energy
